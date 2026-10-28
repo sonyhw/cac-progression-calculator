@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CAC Progression Registry</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: case-report form — records list beside a sectioned form; live result bar pinned to the bottom; stacks on phone */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#17202b; --muted:#4f5b69; --line:#d3dae3; --field:#f8fafc;
+  --accent:#1f4e79; --accent-soft:#e8eff6;
+  --prog:#a3242c; --prog-soft:#fbeced; --ok:#1d6b4f; --ok-soft:#e7f3ee; --warn:#8a5a00; --warn-soft:#fdf3df;
+  --sans:'Public Sans',system-ui,-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --surface:#19212a; --fg:#e6ebf0; --muted:#a3afbc; --line:#2f3944; --field:#121920;
+  --accent:#8db8e3; --accent-soft:#1d2c3b;
+  --prog:#f08a90; --prog-soft:#3a1d21; --ok:#7fcfaa; --ok-soft:#173027; --warn:#e6b85c; --warn-soft:#3a2e15; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --surface:#19212a; --fg:#e6ebf0; --muted:#a3afbc; --line:#2f3944; --field:#121920;
+  --accent:#8db8e3; --accent-soft:#1d2c3b;
+  --prog:#f08a90; --prog-soft:#3a1d21; --ok:#7fcfaa; --ok-soft:#173027; --warn:#e6b85c; --warn-soft:#3a2e15; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5}
+[hidden]{display:none!important}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px 120px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{margin:2px 0 0;font-size:clamp(22px,3.4vw,30px);line-height:1.15;text-wrap:balance}
+h2{margin:0;font-size:16px;font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,.btn{font:600 14px var(--sans);min-height:42px;padding:0 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button.danger{color:var(--prog);border-color:var(--prog)}
+button.danger.armed{background:var(--prog);color:var(--surface)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.banner{border-radius:8px;padding:12px 14px;font-size:14px}
+.banner.warn{background:var(--warn-soft);color:var(--fg);border:1px solid var(--warn)}
+.banner.info{background:var(--accent-soft);border:1px solid var(--line)}
+.banner.ok{background:var(--ok-soft);border:1px solid var(--ok)}
+.layout{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.side{position:sticky;top:12px}
+@media (max-width:900px){.side{position:static}}
+.centre{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:8px}
+.list{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto;margin:0 -4px;padding:0 4px}
+.rec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;text-align:left;width:100%;min-height:0;padding:9px 10px;border-radius:6px;border:1px solid var(--line);background:var(--field);font-weight:500}
+.rec.active{border-color:var(--accent);background:var(--accent-soft)}
+.rec .id{font:600 13.5px var(--mono)}
+.rec .meta{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.chip{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;align-self:start}
+.c-prog{background:var(--prog-soft);color:var(--prog)} .c-ok{background:var(--ok-soft);color:var(--ok)} .c-warn{background:var(--warn-soft);color:var(--warn)} .c-na{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:16px;font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:8px}
+.secnav{display:flex;flex-wrap:wrap;gap:6px}
+.secnav a{font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--surface)}
+fieldset.sec{border:1px solid var(--line);border-radius:8px;margin:0;padding:16px 18px 18px;background:var(--surface);display:flex;flex-direction:column;gap:12px;min-width:0;scroll-margin-top:12px}
+fieldset.sec legend{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);padding:0 6px}
+.secnote{font-size:13px;color:var(--muted);max-width:80ch}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 14px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:13px;font-weight:600;color:var(--muted)}
+.f label .req{color:var(--prog)}
+.f label .unit{font-weight:400}
+.f input,.f select,.f textarea{font:500 15px var(--sans);color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:42px;width:100%}
+.f input[type=number],.f input[type=date]{font-family:var(--mono);font-size:14.5px}
+.f textarea{min-height:70px;resize:vertical}
+.f .out{font:600 15px var(--mono);min-height:42px;display:flex;align-items:center;padding:0 10px;border-radius:6px;background:var(--accent-soft);color:var(--fg);font-variant-numeric:tabular-nums}
+.f input[readonly]{background:var(--accent-soft);font-weight:600}
+.f .help{font-size:12px;color:var(--muted)}
+.f .flag{font-size:12px;color:var(--warn);font-weight:600}
+.f.wide{grid-column:1/-1}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.res{border:1px solid var(--line);border-radius:6px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;background:var(--field)}
+.res span{font-size:12px;color:var(--muted);font-weight:600}
+.res b{font:600 16px var(--mono);font-variant-numeric:tabular-nums}
+.verdict{border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.verdict .big{font-size:20px;font-weight:700}
+.v-prog{background:var(--prog-soft)} .v-prog .big{color:var(--prog)}
+.v-ok{background:var(--ok-soft)} .v-ok .big{color:var(--ok)}
+.v-warn{background:var(--warn-soft)} .v-warn .big{color:var(--warn)}
+.v-na{background:var(--bg);border:1px dashed var(--line)}
+.qc{margin:0;padding-left:20px;font-size:13.5px;color:var(--warn);display:flex;flex-direction:column;gap:2px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.bar .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.bar .status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px;min-width:0}
+.bar .status b{font-family:var(--mono)}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(10,14,20,.55);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal .card{max-width:760px;width:100%;max-height:85vh;overflow:auto}
+.modal textarea{width:100%;min-height:260px;font:12px var(--mono);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:10px}
+.howto ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:90ch}
+details.howto summary{cursor:pointer;font-weight:700;font-size:15px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:6px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.toast{transition:opacity .2s}}
+</style>
+</head>
+<body>
+
+<script type="application/json" id="schema">
+{"sections":[
+ {"id":"study","title":"Study and centre","note":"Do not enter names, medical record numbers, NIK or addresses. Keep the link between Record ID and patient identity in your centre's own log."},
+ {"id":"demo","title":"Demographics and anthropometry","note":"Values at the time of the baseline CAC scan."},
+ {"id":"hist","title":"Clinical history and risk factors","note":"Status at the time of the baseline CAC scan."},
+ {"id":"labs","title":"Baseline laboratory","note":"Closest values within 3 months of the baseline scan. Lipids and glucose in mg/dL; creatinine in mg/dL."},
+ {"id":"meds","title":"Medications","note":"Statin exposure describes the whole period between the two scans; it drives the On-statin / No-statin grouping in the analysis."},
+ {"id":"ctbl","title":"Baseline CAC scan","note":"Agatston scores per vessel. If only the total is available, leave the vessels blank and type the total."},
+ {"id":"ctfu","title":"Follow-up CAC scan","note":"Leave blank until the follow-up scan is done; the record is saved as baseline only."},
+ {"id":"fu","title":"Follow-up laboratory and interval events","note":"Events between the two scans. A revascularisation between scans makes the follow-up Agatston score unreliable."},
+ {"id":"res","title":"Derived results","note":"Calculated automatically and exported with the record."}
+],
+"fields":[
+ {"id":"record_id","label":"Record ID","sec":"study","type":"text","req":true,"auto":true,"help":"Assigned automatically: centre code + number."},
+ {"id":"centre_code","label":"Centre code","sec":"study","type":"text","req":true,"auto":true},
+ {"id":"entry_date","label":"Date of entry","sec":"study","type":"date","req":true},
+ {"id":"entered_by","label":"Entered by (initials)","sec":"study","type":"text"},
+ {"id":"consent","label":"Consent / ethics waiver documented","sec":"study","type":"select","opts":["Yes","No"],"req":true},
+
+ {"id":"age_bl","label":"Age at baseline scan","sec":"demo","type":"num","unit":"years","min":18,"max":100,"req":true},
+ {"id":"sex","label":"Sex","sec":"demo","type":"select","opts":["Male","Female"],"req":true},
+ {"id":"ethnicity","label":"Ethnic group","sec":"demo","type":"select","opts":["Javanese","Sundanese","Malay","Batak","Madurese","Betawi","Minangkabau","Buginese","Bantenese","Banjarese","Balinese","Chinese-Indonesian","Other","Not recorded"]},
+ {"id":"province","label":"Province of residence","sec":"demo","type":"select","opts":["Aceh","Sumatera Utara","Sumatera Barat","Riau","Kepulauan Riau","Jambi","Sumatera Selatan","Kepulauan Bangka Belitung","Bengkulu","Lampung","DKI Jakarta","Jawa Barat","Banten","Jawa Tengah","DI Yogyakarta","Jawa Timur","Bali","Nusa Tenggara Barat","Nusa Tenggara Timur","Kalimantan Barat","Kalimantan Tengah","Kalimantan Selatan","Kalimantan Timur","Kalimantan Utara","Sulawesi Utara","Gorontalo","Sulawesi Tengah","Sulawesi Barat","Sulawesi Selatan","Sulawesi Tenggara","Maluku","Maluku Utara","Papua","Papua Barat","Papua Barat Daya","Papua Selatan","Papua Tengah","Papua Pegunungan"]},
+ {"id":"height_cm","label":"Height","sec":"demo","type":"num","unit":"cm","min":120,"max":210},
+ {"id":"weight_kg","label":"Weight","sec":"demo","type":"num","unit":"kg","min":30,"max":250},
+ {"id":"bmi","label":"BMI","sec":"demo","type":"derived","unit":"kg/m²"},
+ {"id":"waist_cm","label":"Waist circumference","sec":"demo","type":"num","unit":"cm","min":50,"max":200},
+ {"id":"sbp_bl","label":"Systolic BP","sec":"demo","type":"num","unit":"mmHg","min":70,"max":250},
+ {"id":"dbp_bl","label":"Diastolic BP","sec":"demo","type":"num","unit":"mmHg","min":40,"max":150},
+
+ {"id":"scan_indication","label":"Indication for baseline scan","sec":"hist","type":"select","opts":["Asymptomatic risk assessment","Symptomatic, suspected CAD","Known chronic coronary syndrome","Other"]},
+ {"id":"hypertension","label":"Hypertension","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"diabetes","label":"Diabetes","sec":"hist","type":"select","opts":["No","Type 2","Type 1","Unknown"]},
+ {"id":"dm_years","label":"Diabetes duration","sec":"hist","type":"num","unit":"years","min":0,"max":70},
+ {"id":"dyslipidemia","label":"Dyslipidaemia","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"smoking","label":"Smoking","sec":"hist","type":"select","opts":["Never","Former","Current","Unknown"]},
+ {"id":"family_hx_pcad","label":"Family history of premature CAD","sec":"hist","type":"select","opts":["Yes","No","Unknown"],"help":"First-degree relative: men < 55 y, women < 65 y."},
+ {"id":"ckd","label":"Chronic kidney disease","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"prior_mi","label":"Prior myocardial infarction","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"prior_pci","label":"Prior PCI (stent)","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"prior_cabg","label":"Prior CABG","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"prior_stroke","label":"Prior stroke / TIA","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"pad","label":"Peripheral artery disease","sec":"hist","type":"select","opts":["Yes","No","Unknown"]},
+
+ {"id":"tc_bl","label":"Total cholesterol","sec":"labs","type":"num","unit":"mg/dL","min":50,"max":600},
+ {"id":"ldl_bl","label":"LDL-C","sec":"labs","type":"num","unit":"mg/dL","min":10,"max":500},
+ {"id":"hdl_bl","label":"HDL-C","sec":"labs","type":"num","unit":"mg/dL","min":10,"max":150},
+ {"id":"tg_bl","label":"Triglycerides","sec":"labs","type":"num","unit":"mg/dL","min":20,"max":3000},
+ {"id":"nonhdl_bl","label":"Non-HDL-C","sec":"labs","type":"derived","unit":"mg/dL"},
+ {"id":"hba1c_bl","label":"HbA1c","sec":"labs","type":"num","unit":"%","min":3,"max":20},
+ {"id":"fpg_bl","label":"Fasting plasma glucose","sec":"labs","type":"num","unit":"mg/dL","min":40,"max":600},
+ {"id":"creat_bl","label":"Serum creatinine","sec":"labs","type":"num","unit":"mg/dL","min":0.2,"max":15},
+ {"id":"egfr_bl","label":"eGFR (CKD-EPI 2021)","sec":"labs","type":"derived","unit":"mL/min/1.73 m²"},
+ {"id":"hscrp_bl","label":"hs-CRP","sec":"labs","type":"num","unit":"mg/L","min":0,"max":200},
+ {"id":"lpa_bl","label":"Lipoprotein(a)","sec":"labs","type":"num","min":0,"max":1000},
+ {"id":"lpa_unit","label":"Lp(a) unit","sec":"labs","type":"select","opts":["mg/dL","nmol/L"]},
+
+ {"id":"statin_exposure","label":"Statin exposure between scans","sec":"meds","type":"select","opts":["None","Continuous throughout","Started after baseline scan","Stopped before follow-up scan","Intermittent"],"req":true},
+ {"id":"statin_any","label":"Statin group","sec":"meds","type":"derived"},
+ {"id":"statin_name","label":"Statin","sec":"meds","type":"select","opts":["Atorvastatin","Rosuvastatin","Simvastatin","Pravastatin","Pitavastatin","Fluvastatin","Lovastatin"]},
+ {"id":"statin_dose_mg","label":"Statin daily dose","sec":"meds","type":"num","unit":"mg","min":0.5,"max":80},
+ {"id":"statin_intensity","label":"Statin intensity","sec":"meds","type":"derived","help":"ACC/AHA 2018 intensity bands."},
+ {"id":"statin_start","label":"Statin start date","sec":"meds","type":"date"},
+ {"id":"statin_adherence","label":"Adherence","sec":"meds","type":"select","opts":["Good (≥ 80% of doses)","Poor (< 80% of doses)","Unknown"]},
+ {"id":"ezetimibe","label":"Ezetimibe","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"pcsk9i","label":"PCSK9 inhibitor / inclisiran","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"omega3_epa","label":"Omega-3 / icosapent ethyl (EPA)","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"antiplatelet","label":"Antiplatelet","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"antihypertensive","label":"Antihypertensive","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"antidiabetic","label":"Glucose-lowering drug","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"sglt2i","label":"SGLT2 inhibitor","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"glp1ra","label":"GLP-1 receptor agonist","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"vka","label":"Vitamin K antagonist (warfarin)","sec":"meds","type":"select","opts":["Yes","No"]},
+ {"id":"calcium_vitd","label":"Calcium / vitamin D supplement","sec":"meds","type":"select","opts":["Yes","No"]},
+
+ {"id":"scan_date_bl","label":"Baseline scan date","sec":"ctbl","type":"date","req":true},
+ {"id":"scanner_bl","label":"Scanner (vendor / model)","sec":"ctbl","type":"text"},
+ {"id":"kvp_bl","label":"Tube voltage","sec":"ctbl","type":"num","unit":"kVp","min":70,"max":140},
+ {"id":"slice_bl","label":"Slice thickness","sec":"ctbl","type":"num","unit":"mm","min":0.5,"max":5},
+ {"id":"cac_lm_bl","label":"LM","sec":"ctbl","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_lad_bl","label":"LAD","sec":"ctbl","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_lcx_bl","label":"LCx","sec":"ctbl","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_rca_bl","label":"RCA","sec":"ctbl","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_total_bl","label":"Total Agatston","sec":"ctbl","type":"num","unit":"AU","min":0,"max":20000,"req":true,"sum":["cac_lm_bl","cac_lad_bl","cac_lcx_bl","cac_rca_bl"]},
+ {"id":"n_vessels_bl","label":"Vessels with CAC","sec":"ctbl","type":"derived"},
+ {"id":"mesa_pct_bl","label":"MESA percentile","sec":"ctbl","type":"num","unit":"%","min":0,"max":100},
+
+ {"id":"scan_date_fu","label":"Follow-up scan date","sec":"ctfu","type":"date"},
+ {"id":"scanner_fu","label":"Scanner (vendor / model)","sec":"ctfu","type":"text"},
+ {"id":"same_scanner","label":"Same scanner as baseline","sec":"ctfu","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"kvp_fu","label":"Tube voltage","sec":"ctfu","type":"num","unit":"kVp","min":70,"max":140},
+ {"id":"slice_fu","label":"Slice thickness","sec":"ctfu","type":"num","unit":"mm","min":0.5,"max":5},
+ {"id":"cac_lm_fu","label":"LM","sec":"ctfu","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_lad_fu","label":"LAD","sec":"ctfu","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_lcx_fu","label":"LCx","sec":"ctfu","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_rca_fu","label":"RCA","sec":"ctfu","type":"num","unit":"AU","min":0,"max":10000},
+ {"id":"cac_total_fu","label":"Total Agatston","sec":"ctfu","type":"num","unit":"AU","min":0,"max":20000,"sum":["cac_lm_fu","cac_lad_fu","cac_lcx_fu","cac_rca_fu"]},
+ {"id":"n_vessels_fu","label":"Vessels with CAC","sec":"ctfu","type":"derived"},
+
+ {"id":"ldl_fu","label":"LDL-C at follow-up","sec":"fu","type":"num","unit":"mg/dL","min":10,"max":500},
+ {"id":"hba1c_fu","label":"HbA1c at follow-up","sec":"fu","type":"num","unit":"%","min":3,"max":20},
+ {"id":"event_mi","label":"MI between scans","sec":"fu","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"event_revasc","label":"PCI / CABG between scans","sec":"fu","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"event_stroke","label":"Stroke between scans","sec":"fu","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"event_hf","label":"Heart-failure admission between scans","sec":"fu","type":"select","opts":["Yes","No","Unknown"]},
+ {"id":"notes","label":"Notes (no identifiers)","sec":"fu","type":"textarea"},
+
+ {"id":"record_status","label":"Record status","sec":"res","type":"derived"},
+ {"id":"interval_yrs","label":"Interval","sec":"res","type":"derived","unit":"years"},
+ {"id":"delta_au_yr","label":"Absolute change","sec":"res","type":"derived","unit":"AU/yr"},
+ {"id":"pct_yr","label":"Relative change","sec":"res","type":"derived","unit":"%/yr"},
+ {"id":"delta_sqrt","label":"Δ√CAC","sec":"res","type":"derived"},
+ {"id":"prog_mesa","label":"Progression, MESA (1/0)","sec":"res","type":"derived"},
+ {"id":"prog_sqrt","label":"Progression, SQRT ≥ 2.5 (1/0)","sec":"res","type":"derived"},
+ {"id":"prog_raggi","label":"Progression, > 15%/yr (1/0)","sec":"res","type":"derived"},
+ {"id":"rapid_prog","label":"Rapid, ≥ 300 AU/yr (1/0)","sec":"res","type":"derived"},
+ {"id":"hnr_cross","label":"Crossed into ≥ 400 (1/0)","sec":"res","type":"derived"},
+ {"id":"cacdrs_bl","label":"CAC-DRS baseline","sec":"res","type":"derived"},
+ {"id":"cacdrs_fu","label":"CAC-DRS follow-up","sec":"res","type":"derived"},
+ {"id":"cacdrs_grade_bl","label":"CAC-DRS grade baseline (0–3)","sec":"res","type":"derived"},
+ {"id":"cacdrs_grade_fu","label":"CAC-DRS grade follow-up (0–3)","sec":"res","type":"derived"},
+ {"id":"progression_class","label":"Progression class","sec":"res","type":"derived"},
+ {"id":"qc_flags","label":"Quality flags","sec":"res","type":"derived"},
+ {"id":"last_modified","label":"Last modified","sec":"res","type":"derived"}
+]}
+</script>
+
+<div class="wrap">
+<header class="top">
+  <div>
+    <span class="eyebrow">Multicentre CAC progression study · Indonesia</span>
+    <h1>CAC Progression Registry</h1>
+    <p class="muted small">Case report form for serial non-contrast CAC scans. Data stay in this browser until you export a CSV.</p>
+  </div>
+  <div class="toolbar">
+    <button type="button" id="btnSync" hidden>Submit unsent</button>
+    <button type="button" id="btnExport" class="primary">Export CSV</button>
+    <button type="button" id="btnImport">Import CSV</button>
+    <button type="button" id="btnShowCsv">Show CSV</button>
+    <input type="file" id="fileImport" accept=".csv,text/csv" hidden>
+  </div>
+</header>
+
+<div id="storageBanner" class="banner warn" hidden>This browser is blocking local storage, so records will be lost when the page closes. Export a CSV before closing, or open the page in a normal (not private) window.</div>
+<div id="backupBanner" class="banner info" hidden></div>
+
+<div class="layout">
+<aside class="card side" aria-label="Records">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <h2>Centre</h2>
+    <div class="centre">
+      <div class="f"><label for="centreCode">Code</label><input id="centreCode" type="text" maxlength="12" placeholder="e.g. RSUI" autocomplete="off"></div>
+      <div class="f"><label for="centreName">Hospital</label><input id="centreName" type="text" maxlength="80" placeholder="Hospital name" autocomplete="off"></div>
+    </div>
+    <p class="small muted">Use the code agreed with the coordinating centre. It prefixes every Record ID.</p>
+  </div>
+  <details id="syncBox">
+    <summary style="cursor:pointer;font-weight:700">Central registry link <span id="syncState" class="chip c-na" style="margin-left:4px">Off</span></summary>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <div class="f"><label for="syncUrl">Registry web-app link</label><input id="syncUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
+      <div class="f"><label for="syncKey">Centre key</label><input id="syncKey" type="password" autocomplete="off" placeholder="From the coordinating centre"></div>
+      <div class="toolbar"><button type="button" id="btnTest">Test connection</button><button type="button" id="btnShowKey">Show key</button></div>
+      <p class="small muted">With both filled in, every saved record is sent to the central Google Sheet. Records still stay in this browser and in your CSV exports.</p>
+    </div>
+  </details>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <h2>Records <span class="muted" id="recCount" style="font-weight:500"></span></h2>
+    <button type="button" id="btnNew">New record</button>
+  </div>
+  <div class="f"><label for="search">Find</label><input id="search" type="search" placeholder="Record ID or status" autocomplete="off"></div>
+  <div class="list" id="list"></div>
+  <div id="emptyList" class="empty">
+    <strong style="color:var(--fg)">No records yet</strong>
+    <span>Set your centre code, fill in the form and press Save. Each saved record appears here; tap it to edit.</span>
+    <button type="button" id="btnDemo">Load 3 demo records</button>
+  </div>
+</aside>
+
+<main style="display:flex;flex-direction:column;gap:14px;min-width:0">
+  <nav class="secnav" id="secnav" aria-label="Form sections"></nav>
+  <form id="form" novalidate style="display:flex;flex-direction:column;gap:14px"></form>
+
+  <details class="card howto">
+    <summary>How to use this form</summary>
+    <ol>
+      <li><b>Set the centre code</b> (left panel) once per computer. Record IDs are generated from it, for example RSUI-0001.</li>
+      <li><b>Enter one patient per record.</b> Fields marked <span style="color:var(--prog)">*</span> are required to save. Never type names, MRN or NIK; keep that link in your centre's own log.</li>
+      <li><b>Save</b> with the bottom bar. A record with only the baseline scan is saved as <i>Baseline only</i>; open it again after the follow-up scan and complete it.</li>
+      <li><b>Derived results</b> (BMI, eGFR, statin intensity, CAC totals, progression criteria, CAC-DRS, quality flags) are calculated automatically and exported.</li>
+      <li><b>Export CSV</b> at least weekly and after each session. The file is your backup and the copy you send to the coordinating centre. Records live only in this browser; clearing browser data deletes them.</li>
+      <li><b>Import CSV</b> restores a backup or moves records to another computer. Records with the same Record ID are replaced by the imported version.</li>
+      <li><b>Central registry link (optional).</b> If the coordinating centre gave you a web-app link and a centre key, enter them under <i>Central registry link</i> and press <i>Test connection</i>. Each saved record is then sent to the central Google Sheet automatically; <i>Submit unsent</i> resends any that failed (for example while offline).</li>
+      <li><b>Without the link,</b> send the CSV to the coordinating centre by the agreed secure route. The coordinator pastes all centres' CSVs into the analysis workbook.</li>
+    </ol>
+  </details>
+</main>
+</div>
+</div>
+
+<div class="bar" role="region" aria-label="Record actions">
+  <div class="in">
+    <div class="status">
+      <span>Editing <b id="curId">—</b></span>
+      <span id="curChip" class="chip c-na">Not saved</span>
+      <span id="curVerdict" class="muted"></span>
+    </div>
+    <div class="toolbar">
+      <button type="button" id="btnDelete" class="danger" hidden>Delete</button>
+      <button type="button" id="btnClearForm">Clear form</button>
+      <button type="button" id="btnSave" class="primary">Save record</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="csvModal" hidden role="dialog" aria-modal="true" aria-labelledby="csvTitle">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 id="csvTitle">CSV of all records</h2>
+      <div class="toolbar"><button type="button" id="btnCopyCsv">Copy</button><button type="button" id="btnCloseCsv">Close</button></div>
+    </div>
+    <p class="small muted">If the download did not start, copy this text, paste it into a plain-text editor and save it with a .csv extension.</p>
+    <textarea id="csvText" readonly aria-label="CSV text"></textarea>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+'use strict';
+const SCHEMA = JSON.parse(document.getElementById('schema').textContent);
+const FIELDS = SCHEMA.fields;
+const COLS = FIELDS.map(f => f.id).concat(['centre_name']);
+const BYID = Object.fromEntries(FIELDS.map(f => [f.id, f]));
+const KEY = 'cacreg_v1';
+const $ = id => document.getElementById(id);
+
+/* ---------- storage ---------- */
+let storageOK = true;
+function load(){
+  try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : {records:{}, centre:{code:'',name:''}, lastExport:null, changesSinceExport:0}; }
+  catch(e){ storageOK = false; return {records:{}, centre:{code:'',name:''}, lastExport:null, changesSinceExport:0}; }
+}
+let DB = load();
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch(e){ storageOK = false; $('storageBanner').hidden = false; } }
+if (!storageOK) $('storageBanner').hidden = false;
+else { try { localStorage.setItem(KEY + '_t','1'); localStorage.removeItem(KEY + '_t'); } catch(e){ storageOK = false; $('storageBanner').hidden = false; } }
+
+/* ---------- helpers ---------- */
+const num = v => { if (v === '' || v === null || v === undefined) return null; const n = Number(String(v).replace(',', '.')); return isFinite(n) ? n : null; };
+const r1 = n => n === null ? '' : String(Math.round(n * 10) / 10);
+const r2 = n => n === null ? '' : String(Math.round(n * 100) / 100);
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2400); }
+
+/* ---------- derivations ---------- */
+function intensity(name, dose){
+  if (!name || dose === null) return '';
+  const d = dose;
+  switch(name){
+    case 'Atorvastatin': return d >= 40 ? 'High' : d >= 10 ? 'Moderate' : 'Low';
+    case 'Rosuvastatin': return d >= 20 ? 'High' : d >= 5 ? 'Moderate' : 'Low';
+    case 'Simvastatin': return d >= 20 ? 'Moderate' : 'Low';
+    case 'Pravastatin': return d >= 40 ? 'Moderate' : 'Low';
+    case 'Lovastatin': return d >= 40 ? 'Moderate' : 'Low';
+    case 'Fluvastatin': return d >= 80 ? 'Moderate' : 'Low';
+    case 'Pitavastatin': return d >= 1 ? 'Moderate' : 'Low';
+  }
+  return '';
+}
+function egfr(cr, age, sex){
+  if (cr === null || age === null || !sex) return null;
+  const f = sex === 'Female', k = f ? 0.7 : 0.9, a = f ? -0.241 : -0.302;
+  return 142 * Math.pow(Math.min(cr/k,1), a) * Math.pow(Math.max(cr/k,1), -1.2) * Math.pow(0.9938, age) * (f ? 1.012 : 1);
+}
+function grade(s){ return s === null ? null : s === 0 ? 0 : s < 100 ? 1 : s < 300 ? 2 : 3; }
+function vesselTotal(rec, ids){
+  const vals = ids.map(i => num(rec[i]));
+  if (vals.every(v => v === null)) return {total:null, n:null};
+  return {total: vals.reduce((a,v) => a + (v || 0), 0), n: vals.filter(v => v !== null && v > 0).length};
+}
+function yearsBetween(a, b){
+  if (!a || !b) return null;
+  const d1 = new Date(a + 'T00:00:00'), d2 = new Date(b + 'T00:00:00');
+  if (isNaN(d1) || isNaN(d2)) return null;
+  return (d2 - d1) / 86400000 / 365.25;
+}
+
+function derive(rec){
+  const o = {};
+  const h = num(rec.height_cm), w = num(rec.weight_kg);
+  o.bmi = (h && w) ? r1(w / Math.pow(h/100, 2)) : '';
+  const tc = num(rec.tc_bl), hdl = num(rec.hdl_bl);
+  o.nonhdl_bl = (tc !== null && hdl !== null) ? r1(tc - hdl) : '';
+  const e = egfr(num(rec.creat_bl), num(rec.age_bl), rec.sex);
+  o.egfr_bl = e === null ? '' : String(Math.round(e));
+  o.statin_any = !rec.statin_exposure ? '' : rec.statin_exposure === 'None' ? 'No statin' : 'On statin';
+  o.statin_intensity = rec.statin_exposure && rec.statin_exposure !== 'None' ? intensity(rec.statin_name, num(rec.statin_dose_mg)) : '';
+
+  const vb = vesselTotal(rec, BYID.cac_total_bl.sum), vf = vesselTotal(rec, BYID.cac_total_fu.sum);
+  const bl = vb.total !== null ? vb.total : num(rec.cac_total_bl);
+  const fu = vf.total !== null ? vf.total : num(rec.cac_total_fu);
+  o.cac_total_bl = bl === null ? '' : r1(bl);
+  o.cac_total_fu = fu === null ? '' : r1(fu);
+  o.n_vessels_bl = vb.n === null ? '' : String(vb.n);
+  o.n_vessels_fu = vf.n === null ? '' : String(vf.n);
+
+  const yrs = yearsBetween(rec.scan_date_bl, rec.scan_date_fu);
+  const complete = bl !== null && fu !== null && yrs !== null && yrs > 0;
+  o.record_status = complete ? 'Complete' : (bl !== null && rec.scan_date_bl ? 'Baseline only' : 'Incomplete');
+
+  const gb = grade(bl), gf = grade(fu);
+  const drs = (g, n) => g === null ? '' : 'A' + g + (g > 0 && n ? '/N' + n : '');
+  o.cacdrs_bl = drs(gb, vb.n); o.cacdrs_fu = drs(gf, vf.n);
+  o.cacdrs_grade_bl = gb === null ? '' : String(gb); o.cacdrs_grade_fu = gf === null ? '' : String(gf);
+
+  ['interval_yrs','delta_au_yr','pct_yr','delta_sqrt','prog_mesa','prog_sqrt','prog_raggi','rapid_prog','hnr_cross','progression_class'].forEach(k => o[k] = '');
+  const flags = [];
+  if (complete){
+    const perYr = (fu - bl) / yrs, pct = bl > 0 ? perYr / bl * 100 : null, ds = Math.sqrt(fu) - Math.sqrt(bl);
+    const mesa = bl === 0 ? fu > 0 : bl < 100 ? perYr >= 10 : pct >= 10;
+    const rapid = bl > 0 && perYr >= 300;
+    o.interval_yrs = r2(yrs); o.delta_au_yr = r1(perYr); o.pct_yr = pct === null ? '' : r1(pct); o.delta_sqrt = r2(ds);
+    o.prog_mesa = mesa ? '1' : '0'; o.prog_sqrt = ds >= 2.5 ? '1' : '0';
+    o.prog_raggi = bl > 0 ? (pct > 15 ? '1' : '0') : '';
+    o.rapid_prog = bl > 0 ? (rapid ? '1' : '0') : '';
+    o.hnr_cross = (bl >= 1 && bl < 400) ? (fu >= 400 ? '1' : '0') : '';
+    o.progression_class = bl === 0 ? (fu > 0 ? 'Incident CAC' : 'Persistent zero')
+      : rapid ? 'Rapid progression' : mesa ? 'Progression' : ds <= -2.5 ? 'Apparent decrease' : 'No significant progression';
+    if (yrs < 1) flags.push('Interval < 1 year');
+    if (ds <= -2.5) flags.push('Decrease beyond interscan variability');
+  }
+  if (rec.prior_pci === 'Yes' || rec.prior_cabg === 'Yes') flags.push('Prior PCI/CABG: stents or grafts may affect scoring');
+  if (rec.event_revasc === 'Yes') flags.push('Revascularisation between scans');
+  const kb = num(rec.kvp_bl), kf = num(rec.kvp_fu);
+  if ((kb !== null && kb !== 120) || (kf !== null && kf !== 120)) flags.push('Tube voltage not 120 kVp');
+  const sb = num(rec.slice_bl), sf = num(rec.slice_fu);
+  if ((sb !== null && (sb < 2.5 || sb > 3)) || (sf !== null && (sf < 2.5 || sf > 3))) flags.push('Slice thickness outside 2.5–3 mm');
+  if (rec.same_scanner === 'No') flags.push('Different scanner at follow-up');
+  if (rec.statin_exposure && rec.statin_exposure !== 'None' && !rec.statin_name) flags.push('Statin not specified');
+  o.qc_flags = flags.join('; ');
+  return o;
+}
+
+/* ---------- render form ---------- */
+const form = $('form');
+function fieldHTML(f){
+  const req = f.req ? ' <span class="req" aria-hidden="true">*</span>' : '';
+  const unit = f.unit ? ' <span class="unit">(' + esc(f.unit) + ')</span>' : '';
+  const help = f.help ? '<span class="help">' + esc(f.help) + '</span>' : '';
+  const wide = f.type === 'textarea' ? ' wide' : '';
+  let ctl;
+  if (f.type === 'derived') return '<div class="f"><span class="small" style="font-weight:600;color:var(--muted)">' + esc(f.label) + unit + '</span><output class="out" id="o_' + f.id + '" for="">—</output>' + help + '</div>';
+  if (f.type === 'select') ctl = '<select id="f_' + f.id + '" name="' + f.id + '"><option value="">—</option>' + f.opts.map(o => '<option>' + esc(o) + '</option>').join('') + '</select>';
+  else if (f.type === 'textarea') ctl = '<textarea id="f_' + f.id + '" name="' + f.id + '" maxlength="500"></textarea>';
+  else if (f.type === 'num') ctl = '<input id="f_' + f.id + '" name="' + f.id + '" type="number" step="any" inputmode="decimal"' + (f.min !== undefined ? ' min="' + f.min + '"' : '') + (f.max !== undefined ? ' max="' + f.max + '"' : '') + '>';
+  else if (f.type === 'date') ctl = '<input id="f_' + f.id + '" name="' + f.id + '" type="date">';
+  else ctl = '<input id="f_' + f.id + '" name="' + f.id + '" type="text" autocomplete="off"' + (f.auto ? ' readonly' : '') + '>';
+  return '<div class="f' + wide + '"><label for="f_' + f.id + '">' + esc(f.label) + unit + req + '</label>' + ctl + help + '<span class="flag" id="w_' + f.id + '" hidden></span></div>';
+}
+let html = '', nav = '';
+SCHEMA.sections.forEach(s => {
+  nav += '<a href="#sec_' + s.id + '">' + esc(s.title) + '</a>';
+  html += '<fieldset class="sec" id="sec_' + s.id + '"><legend>' + esc(s.title) + '</legend>';
+  if (s.note) html += '<p class="secnote">' + esc(s.note) + '</p>';
+  if (s.id === 'res') html += '<div id="verdict" class="verdict v-na"><span class="big" id="vBig">Awaiting follow-up scan</span><span class="small" id="vSub">Progression criteria appear once both scans and dates are entered.</span></div><ul class="qc" id="qcList" hidden></ul>';
+  html += '<div class="fields">' + FIELDS.filter(f => f.sec === s.id && !(s.id === 'res' && f.id === 'qc_flags')).map(fieldHTML).join('') + '</div></fieldset>';
+});
+form.innerHTML = html;
+$('secnav').innerHTML = nav;
+
+/* ---------- state ---------- */
+let current = null;   // record id being edited, or null for new
+let dirty = false;
+
+function readForm(){
+  const rec = {};
+  FIELDS.forEach(f => { if (f.type !== 'derived'){ const el = $('f_' + f.id); rec[f.id] = el ? el.value.trim() : ''; } });
+  return rec;
+}
+function nextId(){
+  const code = (DB.centre.code || 'CENTRE').toUpperCase();
+  let max = 0;
+  Object.keys(DB.records).forEach(id => { if (id.startsWith(code + '-')){ const n = parseInt(id.slice(code.length + 1), 10); if (n > max) max = n; } });
+  return code + '-' + String(max + 1).padStart(4, '0');
+}
+function fillForm(rec){
+  FIELDS.forEach(f => { if (f.type !== 'derived'){ const el = $('f_' + f.id); if (el) el.value = rec[f.id] || ''; } });
+  refresh();
+}
+function blankRecord(){
+  return {record_id: nextId(), centre_code: (DB.centre.code || '').toUpperCase(), entry_date: today()};
+}
+
+function refresh(){
+  const rec = readForm();
+  const d = derive(rec);
+  // vessel totals: lock total when vessels entered
+  ['bl','fu'].forEach(p => {
+    const tot = $('f_cac_total_' + p), vt = vesselTotal(rec, BYID['cac_total_' + p].sum);
+    if (vt.total !== null){ tot.value = r1(vt.total); tot.readOnly = true; tot.title = 'Sum of the vessel scores'; }
+    else { tot.readOnly = false; tot.title = ''; }
+  });
+  d.last_modified = current && DB.records[current] ? (DB.records[current].last_modified || '') : '';
+  FIELDS.filter(f => f.type === 'derived').forEach(f => { const o = $('o_' + f.id); if (o) o.textContent = d[f.id] === '' || d[f.id] === undefined ? '—' : d[f.id]; });
+  // range warnings
+  FIELDS.filter(f => f.type === 'num').forEach(f => {
+    const w = $('w_' + f.id), v = num(rec[f.id]);
+    if (!w) return;
+    if (v !== null && ((f.min !== undefined && v < f.min) || (f.max !== undefined && v > f.max))){ w.textContent = 'Check value: expected ' + f.min + '–' + f.max; w.hidden = false; }
+    else w.hidden = true;
+  });
+  const fw = $('w_scan_date_fu');
+  const yrs = yearsBetween(rec.scan_date_bl, rec.scan_date_fu);
+  if (yrs !== null && yrs <= 0){ fw.textContent = 'Must be after the baseline scan date'; fw.hidden = false; } else fw.hidden = true;
+  // verdict
+  const v = $('verdict'), cls = d.progression_class;
+  const map = {'Incident CAC':'v-prog','Rapid progression':'v-prog','Progression':'v-prog','Apparent decrease':'v-warn','No significant progression':'v-ok','Persistent zero':'v-ok'};
+  v.className = 'verdict ' + (map[cls] || 'v-na');
+  $('vBig').textContent = cls || (d.record_status === 'Baseline only' ? 'Baseline only — awaiting follow-up scan' : 'Awaiting scan data');
+  $('vSub').textContent = cls ? ('MESA criterion; SQRT ' + (d.prog_sqrt === '1' ? 'agrees with progression' : 'does not show progression') + '. ' + d.statin_any + (d.statin_intensity ? ', ' + d.statin_intensity.toLowerCase() + ' intensity' : '') + '.').replace('. .', '.') : 'Progression criteria appear once both scans and dates are entered.';
+  const qc = $('qcList'), flags = d.qc_flags ? d.qc_flags.split('; ') : [];
+  qc.innerHTML = flags.map(x => '<li>' + esc(x) + '</li>').join(''); qc.hidden = !flags.length;
+  $('curVerdict').textContent = cls ? cls : d.record_status;
+  return {rec, d};
+}
+
+/* ---------- list ---------- */
+function statusChip(r){
+  const c = r.progression_class;
+  if (c === 'Incident CAC' || c === 'Progression' || c === 'Rapid progression') return '<span class="chip c-prog">' + esc(c) + '</span>';
+  if (c === 'Apparent decrease') return '<span class="chip c-warn">' + esc(c) + '</span>';
+  if (c) return '<span class="chip c-ok">' + esc(c === 'No significant progression' ? 'Stable' : c) + '</span>';
+  return '<span class="chip c-na">' + esc(r.record_status || 'Incomplete') + '</span>';
+}
+function renderList(){
+  const q = $('search').value.trim().toLowerCase();
+  const ids = Object.keys(DB.records).sort();
+  const shown = ids.filter(id => { const r = DB.records[id]; return !q || id.toLowerCase().includes(q) || (r.record_status || '').toLowerCase().includes(q) || (r.progression_class || '').toLowerCase().includes(q); });
+  $('recCount').textContent = ids.length ? '(' + ids.length + ')' : '';
+  $('emptyList').hidden = ids.length > 0;
+  $('list').innerHTML = shown.map(id => {
+    const r = DB.records[id];
+    const meta = [r.age_bl ? r.age_bl + ' y' : '', r.sex || '', r.cac_total_bl !== '' && r.cac_total_bl !== undefined ? 'CAC ' + r.cac_total_bl + (r.cac_total_fu ? ' → ' + r.cac_total_fu : '') : '', r.statin_any || ''].filter(Boolean).join(' · ');
+    const unsent = syncOn() && r._synced !== r.last_modified ? ' · <b style="color:var(--warn)">not sent</b>' : '';
+    return '<button type="button" class="rec' + (id === current ? ' active' : '') + '" data-id="' + esc(id) + '"><span class="id">' + esc(id) + '</span>' + statusChip(r) + '<span class="meta">' + esc(meta || 'No data yet') + unsent + '</span></button>';
+  }).join('') + (ids.length && !shown.length ? '<p class="small muted">No records match.</p>' : '');
+  syncUI();
+}
+$('list').addEventListener('click', e => {
+  const b = e.target.closest('.rec'); if (!b) return;
+  if (dirty && !confirmDiscard()) return;
+  openRecord(b.dataset.id);
+});
+$('search').addEventListener('input', renderList);
+
+function openRecord(id){
+  current = id; dirty = false; disarm();
+  fillForm(DB.records[id]);
+  $('curId').textContent = id; setChip('Saved', 'c-ok'); $('btnDelete').hidden = false;
+  renderList(); window.scrollTo({top:0});
+}
+function newRecord(){
+  current = null; dirty = false; disarm();
+  fillForm(blankRecord());
+  $('curId').textContent = $('f_record_id').value + ' (new)'; setChip('Not saved', 'c-na'); $('btnDelete').hidden = true;
+  renderList();
+}
+function setChip(t, c){ const ch = $('curChip'); ch.textContent = t; ch.className = 'chip ' + c; }
+
+/* discard guard without confirm(): second tap within 4 s */
+let discardArmed = 0;
+function confirmDiscard(){
+  if (Date.now() - discardArmed < 4000){ discardArmed = 0; return true; }
+  discardArmed = Date.now(); toast('Unsaved changes. Tap again to discard them.'); return false;
+}
+
+/* ---------- save / delete ---------- */
+function save(){
+  const {rec, d} = refresh();
+  const code = (DB.centre.code || '').trim();
+  const missing = [];
+  if (!code) missing.push('centre code (left panel)');
+  FIELDS.filter(f => f.req && !f.auto).forEach(f => { const val = f.id === 'cac_total_bl' ? d.cac_total_bl : rec[f.id]; if (!val) missing.push(f.label.toLowerCase()); });
+  const yrs = yearsBetween(rec.scan_date_bl, rec.scan_date_fu);
+  if (yrs !== null && yrs <= 0) missing.push('a follow-up date after the baseline date');
+  if (missing.length){ toast('To save, add: ' + missing.join(', ') + '.'); return; }
+  if (!current){ rec.record_id = nextId(); rec.centre_code = code.toUpperCase(); }
+  const full = Object.assign({}, rec, d, {centre_name: DB.centre.name || '', last_modified: new Date().toISOString().slice(0,19).replace('T',' ')});
+  DB.records[full.record_id] = full; DB.changesSinceExport = (DB.changesSinceExport || 0) + 1; persist();
+  current = full.record_id; dirty = false;
+  $('f_record_id').value = current; $('curId').textContent = current; setChip('Saved', 'c-ok'); $('btnDelete').hidden = false;
+  renderList(); backupNote(); toast('Saved ' + current);
+  if (syncOn()) submit([current], true);
+}
+let delArmed = false, delTimer;
+function disarm(){ delArmed = false; const b = $('btnDelete'); b.classList.remove('armed'); b.textContent = 'Delete'; clearTimeout(delTimer); }
+$('btnDelete').addEventListener('click', () => {
+  if (!current) return;
+  if (!delArmed){ delArmed = true; const b = $('btnDelete'); b.classList.add('armed'); b.textContent = 'Tap again to delete ' + current; delTimer = setTimeout(disarm, 4000); return; }
+  const id = current, wasSent = !!DB.records[id]._synced; delete DB.records[id]; DB.changesSinceExport = (DB.changesSinceExport || 0) + 1; persist(); disarm(); newRecord(); backupNote(); syncUI();
+  toast(wasSent ? 'Deleted ' + id + ' here. Ask the coordinating centre to remove it from the central Sheet.' : 'Deleted ' + id);
+});
+$('btnSave').addEventListener('click', save);
+$('btnNew').addEventListener('click', () => { if (dirty && !confirmDiscard()) return; newRecord(); $('f_entry_date').focus(); });
+$('btnClearForm').addEventListener('click', () => { if (dirty && !confirmDiscard()) return; if (current) fillForm(DB.records[current]); else newRecord(); dirty = false; });
+form.addEventListener('input', () => { dirty = true; setChip('Unsaved changes', 'c-warn'); refresh(); });
+form.addEventListener('change', () => { refresh(); });
+form.addEventListener('submit', e => e.preventDefault());
+window.addEventListener('beforeunload', e => { if (dirty){ e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- centre ---------- */
+$('centreCode').value = DB.centre.code || ''; $('centreName').value = DB.centre.name || '';
+$('centreCode').addEventListener('input', e => {
+  const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); e.target.value = v; DB.centre.code = v; persist();
+  if (!current){ $('f_record_id').value = nextId(); $('f_centre_code').value = v; $('curId').textContent = $('f_record_id').value + ' (new)'; }
+});
+$('centreName').addEventListener('input', e => { DB.centre.name = e.target.value; persist(); });
+
+/* ---------- CSV ---------- */
+function csvCell(v){ v = v === undefined || v === null ? '' : String(v); return /[",\n\r;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function toCSV(){
+  const rows = [COLS.join(',')];
+  Object.keys(DB.records).sort().forEach(id => { const r = DB.records[id]; rows.push(COLS.map(c => csvCell(r[c])).join(',')); });
+  return rows.join('\r\n');
+}
+function parseCSV(text){
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ','){ row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r'){ if (c === '\r' && text[i+1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell !== '' || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => x !== ''));
+}
+function exportCSV(){
+  const n = Object.keys(DB.records).length;
+  if (!n){ toast('There are no records to export yet.'); return; }
+  const csv = toCSV(), name = 'CACREG_' + (DB.centre.code || 'CENTRE') + '_' + today().replace(/-/g,'') + '.csv';
+  $('csvText').value = csv;
+  try {
+    const blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast('Exported ' + n + ' records to ' + name);
+  } catch(e){ $('csvModal').hidden = false; }
+  DB.lastExport = new Date().toISOString(); DB.changesSinceExport = 0; persist(); backupNote();
+}
+$('btnExport').addEventListener('click', exportCSV);
+$('btnShowCsv').addEventListener('click', () => { $('csvText').value = toCSV(); $('csvModal').hidden = false; $('btnCloseCsv').focus(); });
+$('btnCloseCsv').addEventListener('click', () => { $('csvModal').hidden = true; });
+$('csvModal').addEventListener('keydown', e => { if (e.key === 'Escape') $('csvModal').hidden = true; });
+$('btnCopyCsv').addEventListener('click', () => {
+  const t = $('csvText');
+  const fallback = () => { t.focus(); t.select(); toast('Selected. Press Ctrl+C (or Copy) to copy.'); };
+  try { navigator.clipboard.writeText(t.value).then(() => toast('CSV copied'), fallback); } catch(e){ fallback(); }
+});
+$('btnImport').addEventListener('click', () => $('fileImport').click());
+$('fileImport').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const rows = parseCSV(String(rd.result));
+    if (rows.length < 2){ toast('That file has no records.'); return; }
+    const head = rows[0].map(h => h.trim());
+    if (head.indexOf('record_id') < 0){ toast('This is not a registry CSV: the record_id column is missing.'); return; }
+    let added = 0, replaced = 0;
+    rows.slice(1).forEach(r => {
+      const rec = {}; head.forEach((h, i) => rec[h] = (r[i] || '').trim());
+      if (!rec.record_id) return;
+      const full = Object.assign(rec, derive(rec));
+      if (DB.records[rec.record_id]) replaced++; else added++;
+      DB.records[rec.record_id] = full;
+    });
+    persist(); renderList(); backupNote();
+    toast('Imported: ' + added + ' new, ' + replaced + ' replaced.');
+  };
+  rd.readAsText(file, 'utf-8'); e.target.value = '';
+});
+
+function backupNote(){
+  const b = $('backupBanner'), n = Object.keys(DB.records).length, ch = DB.changesSinceExport || 0;
+  if (!n){ b.hidden = true; return; }
+  if (!DB.lastExport){ b.textContent = n + ' record' + (n>1?'s':'') + ' in this browser and none exported yet. Export a CSV as your backup.'; b.className = 'banner warn'; b.hidden = false; return; }
+  const d = new Date(DB.lastExport);
+  b.textContent = 'Last export ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + (ch ? ' · ' + ch + ' change' + (ch>1?'s':'') + ' since then. Export again to keep your backup current.' : ' · backup is up to date.');
+  b.className = 'banner ' + (ch ? 'warn' : 'ok'); b.hidden = false;
+}
+
+/* ---------- central registry (Google Sheet web app) ---------- */
+DB.sync = DB.sync || {url:'', key:''};
+$('syncUrl').value = DB.sync.url || ''; $('syncKey').value = DB.sync.key || '';
+function syncOn(){ return !!(DB.sync && /^https:\/\/script\.google(usercontent)?\.com\//.test(DB.sync.url || '') && DB.sync.key && DB.centre.code); }
+function unsentIds(){ return Object.keys(DB.records).filter(id => DB.records[id]._synced !== DB.records[id].last_modified).sort(); }
+function syncUI(){
+  const st = $('syncState'), b = $('btnSync');
+  if (!syncOn()){ st.textContent = 'Off'; st.className = 'chip c-na'; b.hidden = true; return; }
+  const n = unsentIds().length;
+  st.textContent = n ? n + ' unsent' : 'On'; st.className = 'chip ' + (n ? 'c-warn' : 'c-ok');
+  b.hidden = n === 0; b.textContent = 'Submit unsent (' + n + ')';
+}
+$('syncUrl').addEventListener('input', e => { DB.sync.url = e.target.value.trim(); persist(); syncUI(); renderList(); });
+$('syncKey').addEventListener('input', e => { DB.sync.key = e.target.value.trim(); persist(); syncUI(); renderList(); });
+$('btnShowKey').addEventListener('click', () => { const k = $('syncKey'); const show = k.type === 'password'; k.type = show ? 'text' : 'password'; $('btnShowKey').textContent = show ? 'Hide key' : 'Show key'; });
+$('btnTest').addEventListener('click', async () => {
+  if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(DB.sync.url || '')){ toast('Enter the web-app link from the coordinating centre (it starts with https://script.google.com/).'); return; }
+  try {
+    const r = await fetch(DB.sync.url, {method:'GET', redirect:'follow'});
+    const j = await r.json();
+    toast(j && j.ok ? 'Connected to the central registry.' : 'The link answered, but not as the registry. Check the link.');
+  } catch(e){ toast('Could not reach the central registry. Check the link and your internet connection.'); }
+});
+let syncing = false;
+async function submit(ids, quiet){
+  if (!syncOn() || syncing || !ids.length) return;
+  syncing = true; const b = $('btnSync'); b.disabled = true;
+  let sent = 0, failMsg = '';
+  try {
+    for (let i = 0; i < ids.length; i += 100){
+      const chunk = ids.slice(i, i + 100).filter(id => DB.records[id]);
+      const records = chunk.map(id => { const r = Object.assign({}, DB.records[id]); delete r._synced; return r; });
+      const res = await fetch(DB.sync.url, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({key: DB.sync.key, centre_code: DB.centre.code, records})});
+      const j = await res.json();
+      if (!j.ok){ failMsg = j.error || 'The registry refused the records.'; break; }
+      chunk.forEach(id => { DB.records[id]._synced = DB.records[id].last_modified; });
+      sent += chunk.length; persist();
+    }
+  } catch(e){ failMsg = 'Could not reach the central registry; records are kept here. Use Submit unsent when you are back online.'; }
+  syncing = false; b.disabled = false; syncUI(); renderList();
+  if (failMsg) toast(failMsg);
+  else if (!quiet || ids.length > 1) toast('Sent ' + sent + ' record' + (sent === 1 ? '' : 's') + ' to the central registry.');
+  else toast('Saved and sent ' + ids[0] + ' to the central registry.');
+}
+$('btnSync').addEventListener('click', () => submit(unsentIds(), false));
+window.addEventListener('online', () => { if (syncOn() && unsentIds().length) submit(unsentIds(), false); });
+
+/* ---------- demo ---------- */
+$('btnDemo').addEventListener('click', () => {
+  if (!DB.centre.code){ DB.centre.code = 'DEMO'; $('centreCode').value = 'DEMO'; }
+  const base = {consent:'Yes', entered_by:'XX', ethnicity:'Javanese', province:'DKI Jakarta', lpa_unit:'mg/dL', scanner_bl:'Demo 320-row', scanner_fu:'Demo 320-row', same_scanner:'Yes', kvp_bl:'120', kvp_fu:'120', slice_bl:'3', slice_fu:'3', event_mi:'No', event_revasc:'No', event_stroke:'No', event_hf:'No', notes:'DEMO RECORD — delete before real data entry'};
+  const demos = [
+    {age_bl:'58', sex:'Male', height_cm:'168', weight_kg:'74', hypertension:'Yes', diabetes:'Type 2', dyslipidemia:'Yes', smoking:'Former', tc_bl:'212', ldl_bl:'138', hdl_bl:'41', tg_bl:'180', creat_bl:'1.0', statin_exposure:'Continuous throughout', statin_name:'Atorvastatin', statin_dose_mg:'20', scan_date_bl:'2023-02-10', cac_lm_bl:'0', cac_lad_bl:'52', cac_lcx_bl:'12', cac_rca_bl:'0', scan_date_fu:'2025-08-12', cac_lm_fu:'0', cac_lad_fu:'88', cac_lcx_fu:'25', cac_rca_fu:'9', ldl_fu:'82'},
+    {age_bl:'63', sex:'Female', height_cm:'152', weight_kg:'61', hypertension:'Yes', diabetes:'No', dyslipidemia:'Yes', smoking:'Never', tc_bl:'235', ldl_bl:'156', hdl_bl:'52', tg_bl:'135', creat_bl:'0.8', statin_exposure:'None', scan_date_bl:'2022-11-03', cac_total_bl:'240', scan_date_fu:'2025-11-20', cac_total_fu:'410', ldl_fu:'150'},
+    {age_bl:'49', sex:'Male', height_cm:'171', weight_kg:'82', hypertension:'No', diabetes:'No', dyslipidemia:'Yes', smoking:'Current', tc_bl:'198', ldl_bl:'128', hdl_bl:'38', tg_bl:'160', creat_bl:'0.9', statin_exposure:'Started after baseline scan', statin_name:'Rosuvastatin', statin_dose_mg:'10', scan_date_bl:'2024-05-21', cac_total_bl:'0'}
+  ];
+  demos.forEach(dm => {
+    const rec = Object.assign({}, base, dm, {record_id: nextId(), centre_code: DB.centre.code, entry_date: today()});
+    DB.records[rec.record_id] = Object.assign(rec, derive(rec), {centre_name: DB.centre.name || 'Demo hospital', last_modified: new Date().toISOString().slice(0,19).replace('T',' ')});
+  });
+  persist(); renderList(); openRecord(Object.keys(DB.records).sort()[0]); toast('Loaded 3 demo records. Delete them before entering real patients.');
+});
+
+/* ---------- start ---------- */
+newRecord(); backupNote(); syncUI();
+})();
+</script>
+</body>
+</html>
