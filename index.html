@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAC Progression Calculator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: two-column clinical worksheet — inputs left, verdict + criteria right; stacks on phone */
+:root{
+  --bg:#f5f7f9; --surface:#ffffff; --fg:#17202b; --muted:#4f5b69; --line:#d5dce4;
+  --accent:#1f4e79; --accent-soft:#e8eff6;
+  --prog:#a3242c; --prog-soft:#fbeced; --ok:#1d6b4f; --ok-soft:#e7f3ee; --warn:#8a5a00; --warn-soft:#fdf3df;
+  --sans:'Public Sans',system-ui,-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --surface:#1a2129; --fg:#e6ebf0; --muted:#a3afbc; --line:#2f3944;
+  --accent:#8db8e3; --accent-soft:#1d2c3b;
+  --prog:#f08a90; --prog-soft:#3a1d21; --ok:#7fcfaa; --ok-soft:#173027; --warn:#e6b85c; --warn-soft:#3a2e15; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --surface:#1a2129; --fg:#e6ebf0; --muted:#a3afbc; --line:#2f3944;
+  --accent:#8db8e3; --accent-soft:#1d2c3b;
+  --prog:#f08a90; --prog-soft:#3a1d21; --ok:#7fcfaa; --ok-soft:#173027; --warn:#e6b85c; --warn-soft:#3a2e15; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0;font-size:clamp(24px,4vw,32px);line-height:1.15;text-wrap:balance}
+h2{margin:0;font-size:16px;font-weight:700}
+p{margin:0}
+.lede{color:var(--muted);max-width:68ch}
+.grid{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.scan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+legend{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0;margin-bottom:8px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+input[type=number],input[type=date]{font:500 16px var(--mono);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;box-sizing:border-box;min-height:44px}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{flex-direction:row;justify-content:center;align-items:center;min-height:44px;cursor:pointer;font-size:14px;color:var(--fg);font-weight:500;margin:0}
+.seg label+input+label,.seg input+label~label{border-left:1px solid var(--line)}
+.seg input:checked+label{background:var(--accent);color:var(--surface);font-weight:700}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-3px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font:600 14px var(--sans);min-height:44px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.note{font-size:12.5px;color:var(--muted)}
+.err{font-size:13.5px;color:var(--prog);background:var(--prog-soft);border-radius:6px;padding:10px 12px}
+.verdict{border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)}
+.verdict .tag{align-self:flex-start;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.verdict .big{font-size:24px;font-weight:700;line-height:1.2;text-wrap:balance}
+.v-prog{background:var(--prog-soft)} .v-prog .tag{background:var(--prog);color:var(--surface)} .v-prog .big{color:var(--prog)}
+.v-ok{background:var(--ok-soft)} .v-ok .tag{background:var(--ok);color:var(--surface)} .v-ok .big{color:var(--ok)}
+.v-warn{background:var(--warn-soft)} .v-warn .tag{background:var(--warn);color:var(--surface)} .v-warn .big{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stat span{font-size:12px;color:var(--muted);font-weight:600}
+.stat b{font:600 19px var(--mono);font-variant-numeric:tabular-nums}
+.tablebox{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--fg)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.calc{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.c-prog{background:var(--prog-soft);color:var(--prog)} .c-ok{background:var(--ok-soft);color:var(--ok)} .c-na{background:var(--bg);color:var(--muted);border:1px solid var(--line)} .c-warn{background:var(--warn-soft);color:var(--warn)}
+.drs{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:var(--mono);font-weight:600}
+.drs .box{border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.interp{display:flex;flex-direction:column;gap:8px}
+.interp li{margin:0}
+ul,ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.report{font:400 13.5px/1.55 var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;white-space:pre-wrap;word-break:break-word;user-select:all}
+.howto ol li b{color:var(--fg)}
+footer{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+footer ol{gap:2px}
+</style>
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Serial Agatston scoring</span>
+  <h1>CAC Progression Calculator</h1>
+  <p class="lede">Enter two Agatston scores with their exam dates. The calculator applies the MESA algorithm as the primary criterion and reports the SQRT, Raggi, rapid-progression and category-crossing criteria alongside it.</p>
+</header>
+
+<div class="grid">
+<form class="panel" id="form" novalidate>
+  <h2>Patient scans</h2>
+  <fieldset>
+    <legend>Baseline</legend>
+    <div class="scan">
+      <label for="blScore">Agatston (AU)<input id="blScore" type="number" min="0" step="0.1" inputmode="decimal" value="64"></label>
+      <label for="blDate">Exam date<input id="blDate" type="date" value="2024-03-15"></label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Follow-up</legend>
+    <div class="scan">
+      <label for="fuScore">Agatston (AU)<input id="fuScore" type="number" min="0" step="0.1" inputmode="decimal" value="121"></label>
+      <label for="fuDate">Exam date<input id="fuDate" type="date" value="2026-09-15"></label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Statin therapy between scans</legend>
+    <div class="seg" role="radiogroup" aria-label="Statin therapy">
+      <input type="radio" name="statin" id="statinYes" value="yes" checked><label for="statinYes">On statin</label>
+      <input type="radio" name="statin" id="statinNo" value="no"><label for="statinNo">No statin</label>
+    </div>
+  </fieldset>
+  <div id="err" class="err" hidden></div>
+  <div class="actions">
+    <button type="button" id="clear">Clear</button>
+    <button type="button" id="example">Load example</button>
+  </div>
+  <p class="note" id="exNote">Example values are loaded. Results update as you type.</p>
+</form>
+
+<section class="panel" aria-live="polite">
+  <div id="verdict" class="verdict v-prog">
+    <span class="tag" id="vTag">Progression</span>
+    <span class="big" id="vText">—</span>
+    <span class="note" id="vSub"></span>
+  </div>
+  <div class="stats">
+    <div class="stat"><span>Interval</span><b id="sYrs">—</b></div>
+    <div class="stat"><span>Δ AU / year</span><b id="sAbs">—</b></div>
+    <div class="stat"><span>% / year</span><b id="sPct">—</b></div>
+    <div class="stat"><span>Δ√CAC</span><b id="sSqrt">—</b></div>
+  </div>
+
+  <div class="tablebox">
+  <table>
+    <thead><tr><th>Criterion</th><th>Threshold</th><th>This patient</th><th>Result</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  </div>
+
+  <div class="interp">
+    <h2>CAC-DRS category</h2>
+    <div class="drs"><span class="box" id="drsBl">—</span><span aria-hidden="true">→</span><span class="box" id="drsFu">—</span><span class="note" id="drsNote" style="font-family:var(--sans);font-weight:400"></span></div>
+    <p class="note">Add the vessel modifier (/N1–N4) from the scan. Treatment line follows the SCCT 2018 CAC-DRS table.<sup>1</sup></p>
+  </div>
+
+  <div class="interp">
+    <h2>Interpretation</h2>
+    <ul id="interp"></ul>
+  </div>
+
+  <div class="interp">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2>Report sentence</h2>
+      <button type="button" id="copy">Copy</button>
+    </div>
+    <div class="report" id="report">—</div>
+  </div>
+</section>
+</div>
+
+<section class="panel howto">
+  <h2>How to use</h2>
+  <ol>
+    <li><b>Enter the baseline scan:</b> total Agatston score (sum of LM, LAD, LCx and RCA) and the exam date.</li>
+    <li><b>Enter the follow-up scan</b> the same way. Use scans done with the same protocol (120 kVp, 2.5–3 mm slices), ideally on the same scanner.</li>
+    <li><b>Select statin status</b> for the period between the two scans. This changes the interpretation, not the arithmetic.</li>
+    <li><b>Read the verdict.</b> The coloured box gives the primary result (MESA algorithm, chosen by baseline score). The table shows every criterion so you can see where they agree.</li>
+    <li><b>Copy the report sentence</b> into your CAC report or the registry workbook, then add the vessel modifier for CAC-DRS.</li>
+  </ol>
+  <p class="note">Rules used: baseline 0 → any CAC at follow-up; baseline 1–99 → ≥ 10 AU/yr; baseline ≥ 100 → ≥ 10%/yr.<sup>3</sup> Rapid progression is ≥ 300 AU/yr.<sup>6</sup> Intervals are calculated from the dates in days ÷ 365.25. This is a decision aid; clinical judgement and the full risk profile still decide treatment.</p>
+</section>
+
+<footer>
+  <strong style="color:var(--fg)">References</strong>
+  <ol>
+    <li>Hecht HS, Blaha MJ, Kazerooni EA, Cury RC, Budoff M, Leipsic J, et al. CAC-DRS: Coronary Artery Calcium Data and Reporting System. J Cardiovasc Comput Tomogr. 2018;12(3):185–91.</li>
+    <li>Hokanson JE, MacKenzie T, Kinney G, Snell-Bergeon JK, Dabelea D, Ehrlich J, et al. Evaluating changes in coronary artery calcium: an analytic method that accounts for interscan variability. AJR Am J Roentgenol. 2004;182(5):1327–32.</li>
+    <li>Berry JD, Liu K, Folsom AR, Lewis CE, Carr JJ, Polak JF, et al. Prevalence and progression of subclinical atherosclerosis in younger adults with low short-term but high lifetime estimated risk for cardiovascular disease. Circulation. 2009;119(3):382–9.</li>
+    <li>Budoff MJ, Hokanson JE, Nasir K, Shaw LJ, Kinney GL, Chow D, et al. Progression of coronary artery calcium predicts all-cause mortality. JACC Cardiovasc Imaging. 2010;3(12):1229–36.</li>
+    <li>Raggi P, Callister TQ, Shaw LJ. Progression of coronary artery calcium and risk of first myocardial infarction in patients receiving cholesterol-lowering therapy. Arterioscler Thromb Vasc Biol. 2004;24(7):1272–7.</li>
+    <li>Budoff MJ, Young R, Lopez VA, Kronmal RA, Nasir K, Blumenthal RS, et al. Progression of coronary calcium and incident coronary heart disease events: MESA. J Am Coll Cardiol. 2013;61(12):1231–9.</li>
+    <li>Lehmann N, Erbel R, Mahabadi AA, Rauwolf M, Möhlenkamp S, Moebus S, et al. Value of progression of coronary artery calcification for risk prediction of coronary and cardiovascular events: the HNR Study. Circulation. 2018;137(7):665–79.</li>
+    <li>Puri R, Nicholls SJ, Shao M, Kataoka Y, Uno K, Kapadia SR, et al. Impact of statins on serial coronary calcification during atheroma progression and regression. J Am Coll Cardiol. 2015;65(13):1273–82.</li>
+    <li>Dzaye O, Dardari ZA, Cainzos-Achirica M, Blankstein R, Agatston AS, Duebgen M, et al. Warranty period of a calcium score of zero: comprehensive analysis from MESA. JACC Cardiovasc Imaging. 2021;14(5):990–1002.</li>
+  </ol>
+</footer>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const ids = ['blScore','blDate','fuScore','fuDate'];
+  const EX = {blScore:'64',blDate:'2024-03-15',fuScore:'121',fuDate:'2026-09-15',statin:'yes'};
+  const f1 = n => (Math.round(n*10)/10).toFixed(1);
+  const sign = n => (n>0?'+':'') + f1(n);
+
+  function drs(s){
+    if (s===0) return {c:'A0', tx:'statin generally not recommended (excluding familial hypercholesterolaemia)'};
+    if (s<100) return {c:'A1', tx:'moderate-intensity statin'};
+    if (s<300) return {c:'A2', tx:'moderate- to high-intensity statin + ASA 81 mg'};
+    return {c:'A3', tx:'high-intensity statin + ASA 81 mg'};
+  }
+  const chip = (cls, t) => `<span class="chip ${cls}">${t}</span>`;
+  const fmtDate = d => d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
+  function compute(bl, fu, yrs, statin){
+    const dAbs = fu - bl, perYr = dAbs / yrs;
+    const pctYr = bl > 0 ? perYr / bl * 100 : null;
+    const dSqrt = Math.sqrt(fu) - Math.sqrt(bl);
+    let mesa, mesaRule, mesaVal;
+    if (bl === 0){ mesa = fu > 0; mesaRule = 'Baseline 0: CAC > 0 at follow-up'; mesaVal = 'Follow-up ' + f1(fu) + ' AU'; }
+    else if (bl < 100){ mesa = perYr >= 10; mesaRule = 'Baseline 1–99: ≥ 10 AU/yr'; mesaVal = sign(perYr) + ' AU/yr'; }
+    else { mesa = pctYr >= 10; mesaRule = 'Baseline ≥ 100: ≥ 10%/yr'; mesaVal = sign(pctYr) + '%/yr'; }
+    const sqrtProg = dSqrt >= 2.5, sqrtDown = dSqrt <= -2.5;
+    const raggi = bl > 0 ? pctYr > 15 : null;
+    const rapid = bl > 0 && perYr >= 300;
+    const hnr = bl >= 1 && bl < 400 && fu >= 400;
+    return {dAbs, perYr, pctYr, dSqrt, mesa, mesaRule, mesaVal, sqrtProg, sqrtDown, raggi, rapid, hnr, statin, bl, fu, yrs};
+  }
+
+  function render(){
+    const err = $('err'); err.hidden = true;
+    const blS = $('blScore').value, fuS = $('fuScore').value, blD = $('blDate').value, fuD = $('fuDate').value;
+    const statin = document.querySelector('input[name=statin]:checked').value === 'yes';
+    const problems = [];
+    const bl = parseFloat(blS), fu = parseFloat(fuS);
+    if (blS === '' || isNaN(bl) || bl < 0) problems.push('Enter a baseline Agatston score of 0 or more.');
+    if (fuS === '' || isNaN(fu) || fu < 0) problems.push('Enter a follow-up Agatston score of 0 or more.');
+    if (!blD || !fuD) problems.push('Enter both exam dates.');
+    let yrs = NaN, d1, d2;
+    if (blD && fuD){
+      d1 = new Date(blD + 'T00:00:00'); d2 = new Date(fuD + 'T00:00:00');
+      yrs = (d2 - d1) / 86400000 / 365.25;
+      if (!(yrs > 0)) problems.push('The follow-up date must be after the baseline date.');
+    }
+    if (problems.length){ err.textContent = problems.join(' '); err.hidden = false; blank(); return; }
+
+    const r = compute(bl, fu, yrs, statin);
+    $('sYrs').textContent = f1(yrs) + ' y';
+    $('sAbs').textContent = sign(r.perYr);
+    $('sPct').textContent = r.pctYr === null ? 'n/a' : sign(r.pctYr);
+    $('sSqrt').textContent = (r.dSqrt>0?'+':'') + r.dSqrt.toFixed(2);
+
+    // verdict
+    let cls, tag, text, sub;
+    if (bl === 0){
+      if (fu > 0){ cls='v-prog'; tag='Progression'; text='Incident CAC'; sub='New coronary calcium on a previously zero scan.'; }
+      else { cls='v-ok'; tag='Stable'; text='CAC remains 0'; sub='No coronary calcium on either scan.'; }
+    } else if (r.rapid){ cls='v-prog'; tag='Rapid progression'; text='Rapid progression (≥ 300 AU/yr)'; sub='Meets the MESA rapid-progression threshold.'; }
+    else if (r.mesa){ cls='v-prog'; tag='Progression'; text='CAC progression'; sub='Meets the MESA criterion for this baseline range.'; }
+    else if (r.sqrtDown){ cls='v-warn'; tag='Check technique'; text='Apparent decrease'; sub='The fall exceeds interscan variability. Confirm protocol, slice thickness and scanner before reporting regression.'; }
+    else { cls='v-ok'; tag='Stable'; text='No significant progression'; sub='Change stays below the MESA threshold for this baseline range.'; }
+    if (bl > 0 && !r.rapid){
+      const agree = (r.mesa === r.sqrtProg);
+      sub += agree ? ' SQRT method agrees.' : (r.sqrtProg ? ' SQRT method does flag progression; report as borderline.' : ' SQRT method does not confirm it; report as borderline.');
+    }
+    const v = $('verdict'); v.className = 'verdict ' + cls;
+    $('vTag').textContent = tag; $('vText').textContent = text; $('vSub').textContent = sub;
+
+    // table
+    const yes = chip('c-prog','Met'), no = chip('c-ok','Not met'), na = chip('c-na','n/a');
+    const rows = [
+      ['MESA (primary)<sup>3</sup>', r.mesaRule, r.mesaVal, r.mesa ? yes : no],
+      ['SQRT method<sup>2,4</sup>', '√FU − √BL ≥ 2.5', '√' + f1(fu) + ' − √' + f1(bl) + ' = ' + r.dSqrt.toFixed(2), r.sqrtProg ? yes : (r.sqrtDown ? chip('c-warn','Decrease') : no)],
+      ['Raggi relative<sup>5</sup>', '> 15%/yr' + (statin ? ' (on statin)' : ''), r.pctYr === null ? 'Baseline 0' : sign(r.pctYr) + '%/yr', r.raggi === null ? na : (r.raggi ? yes : no)],
+      ['Rapid, MESA<sup>6</sup>', '≥ 300 AU/yr', bl === 0 ? 'Baseline 0' : sign(r.perYr) + ' AU/yr', bl === 0 ? na : (r.rapid ? yes : no)],
+      ['Category crossing, HNR<sup>7</sup>', '1–399 → ≥ 400', f1(bl) + ' → ' + f1(fu), (bl < 1 || bl >= 400) ? na : (r.hnr ? yes : no)]
+    ];
+    $('rows').innerHTML = rows.map(x => `<tr><td>${x[0]}</td><td>${x[1]}</td><td class="calc">${x[2]}</td><td>${x[3]}</td></tr>`).join('');
+
+    // CAC-DRS
+    const a = drs(bl), b = drs(fu);
+    $('drsBl').textContent = 'Baseline ' + a.c; $('drsFu').textContent = 'Follow-up ' + b.c;
+    $('drsNote').textContent = a.c === b.c ? 'Same category. Follow-up: ' + b.tx + '.' : 'Category changed. Follow-up: ' + b.tx + '.';
+
+    // interpretation
+    const items = [];
+    if (yrs < 1) items.push('The interval is under 1 year. Annualizing a short interval magnifies measurement noise; interpret with caution.');
+    if (statin){
+      if (bl === 0 && fu === 0) items.push('CAC remains 0 on statin therapy.');
+      else if (r.mesa || r.sqrtProg){
+        items.push('Statins increase plaque calcification even while atheroma regresses, so rising CAC on a statin is not by itself treatment failure.<sup>8</sup> Review LDL-C, adherence and dose.');
+        if (r.raggi) items.push('Relative change exceeds 15%/yr. In statin-treated patients this level was associated with a higher risk of first MI despite similar LDL-C.<sup>5</sup>');
+      } else items.push('CAC is stable on statin therapy.');
+    } else {
+      if (bl === 0 && fu === 0) items.push('CAC = 0 again. The interval before CAC usually appears is about 3–7 years and is shorter with diabetes; plan any rescan accordingly.<sup>9</sup>');
+      else if (r.mesa || r.sqrtProg) items.push('Progression without statin therapy. Use the follow-up CAC-DRS category and the overall risk profile to discuss starting treatment.<sup>1</sup>');
+      else items.push('No significant progression without statin therapy. Therapy decisions follow the follow-up CAC-DRS category.<sup>1</sup>');
+    }
+    if (r.hnr) items.push('The score has crossed 400, a change associated with nearly twice the coronary and cardiovascular risk.<sup>7</sup>');
+    if (bl > 0) items.push('The follow-up score carries most of the prognostic weight; progression adds only modestly beyond it.<sup>7</sup>');
+    $('interp').innerHTML = items.map(t => `<li>${t}</li>`).join('');
+
+    // report sentence
+    let s = `Coronary artery calcium increased from ${f1(bl)} AU (${fmtDate(d1)}) to ${f1(fu)} AU (${fmtDate(d2)}) over ${f1(yrs)} years`;
+    if (fu < bl) s = s.replace('increased', 'changed');
+    if (bl === 0 && fu === 0) s = `Coronary artery calcium remains 0 AU (${fmtDate(d1)} and ${fmtDate(d2)}; interval ${f1(yrs)} years)`;
+    if (!(bl === 0 && fu === 0)){
+      s += ` (${sign(r.perYr)} AU/yr` + (r.pctYr !== null ? `; ${sign(r.pctYr)}%/yr` : '') + `; Δ√CAC ${r.dSqrt.toFixed(2)})`;
+    }
+    s += `, ${statin ? 'on' : 'without'} statin therapy. `;
+    s += 'Assessment: ' + (text.startsWith('CAC') ? text : text.charAt(0).toLowerCase() + text.slice(1)) + ' (MESA criterion' + (bl > 0 ? (r.mesa === r.sqrtProg ? '; concordant with SQRT method' : '; discordant with SQRT method') : '') + '). ';
+    s += `CAC-DRS ${a.c} → ${b.c}/N_.`;
+    $('report').textContent = s;
+  }
+
+  function blank(){
+    ['sYrs','sAbs','sPct','sSqrt'].forEach(i => $(i).textContent = '—');
+    $('verdict').className = 'verdict v-warn'; $('vTag').textContent = 'Waiting'; $('vText').textContent = 'Complete the inputs'; $('vSub').textContent = '';
+    $('rows').innerHTML = ''; $('interp').innerHTML = ''; $('report').textContent = '—';
+    $('drsBl').textContent = '—'; $('drsFu').textContent = '—'; $('drsNote').textContent = '';
+  }
+
+  function setVals(o){
+    ids.forEach(i => $(i).value = o[i]);
+    $(o.statin === 'no' ? 'statinNo' : 'statinYes').checked = true;
+  }
+
+  $('form').addEventListener('input', () => { $('exNote').textContent = 'Results update as you type.'; render(); });
+  $('form').addEventListener('change', render);
+  $('form').addEventListener('submit', e => e.preventDefault());
+  $('clear').addEventListener('click', () => { setVals({blScore:'',blDate:'',fuScore:'',fuDate:'',statin:'yes'}); $('exNote').textContent = 'Enter both scans to see the result.'; render(); $('blScore').focus(); });
+  $('example').addEventListener('click', () => { setVals(EX); $('exNote').textContent = 'Example values are loaded. Results update as you type.'; render(); });
+  $('copy').addEventListener('click', () => {
+    const t = $('report').textContent, btn = $('copy');
+    const done = () => { btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy', 1500); };
+    const fallback = () => { const sel = getSelection(), rg = document.createRange(); rg.selectNodeContents($('report')); sel.removeAllRanges(); sel.addRange(rg); btn.textContent = 'Selected — press Ctrl+C'; setTimeout(() => btn.textContent = 'Copy', 2500); };
+    try { navigator.clipboard.writeText(t).then(done, fallback); } catch(e){ fallback(); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
