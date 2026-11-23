@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkulator RCRI — Evaluasi Kardiovaskular Perioperatif</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f5f7f9; --surface:#ffffff; --fg:#17202b; --muted:#4f5b69; --line:#d5dce4;
+  --accent:#1f4e79; --accent-soft:#e8eff6;
+  --prog:#a3242c; --prog-soft:#fbeced; --ok:#1d6b4f; --ok-soft:#e7f3ee; --warn:#8a5a00; --warn-soft:#fdf3df;
+  --sans:'Public Sans',system-ui,-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#11161c; --surface:#1a2129; --fg:#e6ebf0; --muted:#a3afbc; --line:#2f3944;
+  --accent:#8db8e3; --accent-soft:#1d2c3b;
+  --prog:#f08a90; --prog-soft:#3a1d21; --ok:#7fcfaa; --ok-soft:#173027; --warn:#e6b85c; --warn-soft:#3a2e15; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0;font-size:clamp(24px,4vw,32px);line-height:1.15}
+h2{margin:0;font-size:16px;font-weight:700}
+p{margin:0}
+.lede{color:var(--muted);max-width:70ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.legend{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.item{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:start;padding:12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--bg)}
+.item:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.item input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--accent)}
+.item b{display:block;font-size:14.5px}
+.item small{display:block;color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:2px}
+.item .pt{font:600 13px var(--mono);color:var(--muted);white-space:nowrap}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.mods .item{grid-template-columns:24px minmax(0,1fr);padding:10px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font:600 14px var(--sans);min-height:44px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:12.5px;color:var(--muted)}
+.verdict{border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:6px;border:1px solid}
+.v-ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.v-hi{background:var(--prog-soft);border-color:var(--prog);color:var(--prog)}
+.verdict .tag{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.verdict .big{font:600 44px/1 var(--mono);color:var(--fg)}
+.verdict .big small{font-size:18px;color:var(--muted)}
+.verdict .sub{color:var(--fg);font-size:14px}
+.tablebox{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:600}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr.hit td{background:var(--accent-soft);font-weight:700}
+.step{border-left:3px solid var(--accent);padding:10px 12px;background:var(--accent-soft);border-radius:0 6px 6px 0;display:flex;flex-direction:column;gap:4px}
+.step.warn{border-color:var(--warn);background:var(--warn-soft)}
+.step b{font-size:14px}
+.step span{font-size:13.5px}
+pre{white-space:pre-wrap;font:12.5px/1.5 var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;margin:0}
+footer{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:16px}
+footer ol{margin:0;padding-left:20px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <span class="eyebrow">Evaluasi Kardiovaskular Perioperatif · AHA/ACC 2026</span>
+  <h1>Kalkulator Revised Cardiac Risk Index (RCRI)</h1>
+  <p class="lede">Estimasi risiko major adverse cardiac events (MACE) pada pasien dewasa yang menjalani bedah nonkardiak. Sesuai Langkah 3 pedoman: <b>risiko elevasi = RCRI &gt;1</b> atau risiko MACE ≥1% dengan kalkulator apa pun (2a, B-NR).</p>
+</header>
+
+<div class="grid">
+<form class="panel" id="form" onsubmit="return false">
+  <h2>Komponen RCRI <span class="note">(1 poin per item)</span></h2>
+  <div id="rcri"></div>
+
+  <h2 style="margin-top:8px">Risk modifiers <span class="note">(tidak menambah skor)</span></h2>
+  <p class="note">Centang bila ada; memerlukan konsultasi tim dan pemeriksaan sesuai kondisi.</p>
+  <div class="mods" id="mods"></div>
+
+  <div class="actions">
+    <button type="button" id="reset">Reset</button>
+  </div>
+</form>
+
+<section class="panel" aria-live="polite">
+  <div id="verdict" class="verdict v-ok">
+    <span class="tag" id="vTag">Risiko rendah</span>
+    <span class="big"><span id="score">0</span><small> / 6</small></span>
+    <span class="sub" id="vSub"></span>
+  </div>
+
+  <div>
+    <h2>Estimasi risiko menurut skor</h2>
+    <div class="tablebox">
+    <table>
+      <thead><tr><th>Skor RCRI</th><th>Lee 1999<sup>1</sup></th><th>Duceppe 2017<sup>2</sup></th></tr></thead>
+      <tbody id="riskRows"></tbody>
+    </table>
+    </div>
+    <p class="note">Lee 1999: komplikasi jantung mayor (infark miokard, edema paru, fibrilasi ventrikel/henti jantung primer, blok AV total) selama rawat inap, kohort derivasi. Duceppe 2017: kematian, infark miokard, atau henti jantung dalam 30 hari (data VISION, rekalibrasi CCS) — angka ini lebih tinggi karena surveilans troponin rutin.</p>
+  </div>
+
+  <div id="next" class="step"></div>
+
+  <div>
+    <h2 style="margin-bottom:8px">Ringkasan untuk rekam medis</h2>
+    <pre id="summary"></pre>
+    <div class="actions" style="margin-top:10px">
+      <button type="button" class="primary" id="copy">Salin ringkasan</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<footer>
+  <p>Alat bantu keputusan klinis; tidak menggantikan penilaian klinis. Lanjutkan ke penilaian kapasitas fungsional (DASI/METs), frailty, dan biomarker sesuai alur pedoman.</p>
+  <ol>
+    <li>Lee TH, Marcantonio ER, Mangione CM, Thomas EJ, Polanczyk CA, Cook EF, et al. Derivation and prospective validation of a simple index for prediction of cardiac risk of major noncardiac surgery. Circulation. 1999;100(10):1043–9.</li>
+    <li>Duceppe E, Parlow J, MacDonald P, Lyons K, McMullen M, Srinathan S, et al. Canadian Cardiovascular Society guidelines on perioperative cardiac risk assessment and management for patients who undergo noncardiac surgery. Can J Cardiol. 2017;33(1):17–32.</li>
+    <li>Thompson A, Fleischmann KE, Smilowitz NR, de las Fuentes L, Mukherjee D, Aggarwal NR, et al. 2024 AHA/ACC/ACS/ASNC/HRS/SCA/SCCT/SCMR/SVM guideline for perioperative cardiovascular management for noncardiac surgery. Circulation. 2024;150(19):e351–442.</li>
+  </ol>
+  <p><a href="index.html">← CAC Progression Calculator</a></p>
+</footer>
+</div>
+
+<script>
+const RCRI = [
+  {id:'hrs', t:'Bedah risiko tinggi', d:'Intraperitoneal, intratorakal, atau vaskular suprainguinal.'},
+  {id:'ihd', t:'Riwayat penyakit jantung iskemik', d:'Riwayat infark miokard, uji latih positif, nyeri dada iskemik saat ini, penggunaan nitrat, atau gelombang Q patologis pada EKG.'},
+  {id:'hf',  t:'Riwayat gagal jantung', d:'Riwayat gagal jantung, edema paru, PND, ronki bilateral atau S3, atau redistribusi vaskular pada foto toraks.'},
+  {id:'cvd', t:'Riwayat penyakit serebrovaskular', d:'Riwayat stroke atau TIA.'},
+  {id:'ins', t:'Terapi insulin pra-operasi', d:'Diabetes melitus dengan terapi insulin.'},
+  {id:'cr',  t:'Kreatinin serum pra-operasi >2,0 mg/dL', d:'Setara >177 µmol/L.'}
+];
+const MODS = ['Penyakit katup berat','Hipertensi pulmonal berat','Penyakit jantung bawaan risiko tinggi','Riwayat stent koroner atau CABG','Stroke/TIA baru','CIED (pacu jantung/ICD)','Frailty'];
+const RISK = [['0','0,4%','3,9%'],['1','0,9%','6,0%'],['2','6,6%','10,1%'],['≥3','11,0%','15,0%']];
+
+const $ = id => document.getElementById(id);
+$('rcri').innerHTML = RCRI.map(c => `<label class="item" style="margin-bottom:8px"><input type="checkbox" data-k="${c.id}"><span><b>${c.t}</b><small>${c.d}</small></span><span class="pt">+1</span></label>`).join('');
+$('mods').innerHTML = MODS.map((m,i) => `<label class="item"><input type="checkbox" data-m="${i}"><span><b style="font-weight:500">${m}</b></span></label>`).join('');
+
+function update(){
+  const picked = RCRI.filter(c => document.querySelector(`[data-k="${c.id}"]`).checked);
+  const mods = MODS.filter((m,i) => document.querySelector(`[data-m="${i}"]`).checked);
+  const s = picked.length, elev = s > 1, row = Math.min(s,3);
+  $('score').textContent = s;
+  $('verdict').className = 'verdict ' + (elev ? 'v-hi' : 'v-ok');
+  $('vTag').textContent = elev ? 'Risiko elevasi' : 'Risiko rendah';
+  $('vSub').textContent = `Estimasi MACE: ${RISK[row][1]} (Lee 1999) · ${RISK[row][2]} dalam 30 hari (Duceppe 2017)`;
+  $('riskRows').innerHTML = RISK.map((r,i) => `<tr class="${i===row?'hit':''}"><td class="num">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
+
+  let nb, ns, warn = false;
+  if (mods.length){ nb='Ada risk modifier → konsultasi tim'; ns='Lanjut ke Langkah 4 (kapasitas fungsional & frailty) dan Langkah 5 (pemeriksaan penunjang) sesuai kondisi.'; warn=true; }
+  else if (elev){ nb='Risiko elevasi, tanpa risk modifier → Langkah 4'; ns='Nilai kapasitas fungsional (DASI ≤34 atau <4 METs = buruk) dan frailty bila usia ≥65 tahun.'; warn=true; }
+  else { nb='Risiko rendah, tanpa risk modifier → lanjut operasi'; ns='Optimalkan tata laksana perioperatif; pemeriksaan imaging rutin tidak bermanfaat (3).'; }
+  $('next').className = 'step' + (warn ? ' warn' : '');
+  $('next').innerHTML = `<b>${nb}</b><span>${ns}</span>`;
+
+  $('summary').textContent =
+`RCRI: ${s}/6 — ${elev ? 'risiko elevasi (RCRI >1)' : 'risiko rendah (RCRI ≤1)'}
+Komponen: ${picked.length ? picked.map(c=>c.t).join('; ') : 'tidak ada'}
+Estimasi MACE: ${RISK[row][1]} (Lee 1999); ${RISK[row][2]} 30 hari (Duceppe 2017)
+Risk modifier: ${mods.length ? mods.join('; ') : 'tidak ada'}
+Kesimpulan: ${nb}`;
+}
+document.addEventListener('change', update);
+$('reset').onclick = () => { document.querySelectorAll('input[type=checkbox]').forEach(i => i.checked=false); update(); };
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('summary').textContent); $('copy').textContent='Tersalin ✓'; }
+  catch(e){ $('copy').textContent='Salin manual dari kotak di atas'; }
+  setTimeout(()=>{$('copy').textContent='Salin ringkasan'},2000);
+};
+update();
+</script>
+</body>
+</html>
